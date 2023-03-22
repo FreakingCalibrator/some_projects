@@ -1,0 +1,66 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <fcntl.h>
+
+int main(int argc, char** argv)
+{
+    int i,n,pid,j,count;
+    count=1;
+    char progpid[5], data[5],c,pc;
+    //char way[40]="/proc/";
+    strcpy(progpid,argv[1]);
+    //strcpy(progpid,"1303");
+    //strcat(way,progpid);
+    //strcat(way,"/task/");
+    //strcat(way,progpid);
+    //strcat(way,"/children");
+    int* pids=(int*)malloc(1*sizeof(int));
+    n=1;
+    pids[0]=atoi(progpid);
+    /*sprintf(progpid,"%d",pids[0]);*/
+    //printf("%d\n",sizeof(pids)/sizeof(int)-1);
+    while (n)
+    {
+         for (i=0;i<5;i++)
+            progpid[i]=0;
+         sprintf(progpid,"%d",pids[n-1]);   //itoa
+         int* del=pids+n-1;
+    //printf("%d deleted\n",*del);
+         //free(del);
+         pids=(int*)realloc(pids,(--n)*sizeof(int));
+         //n--;
+         char way[40]="/proc/";
+         strcat(way,progpid);
+         strcat(way,"/task/");
+         strcat(way,progpid);
+         strcat(way,"/children");
+    //printf("%s\n",way);
+         pid=open(way,O_RDONLY);
+         read(pid,&c,1);
+         while (c!='\0'&& c!=' ')
+         {
+            i=0;
+            while (c!=' ')
+            {
+                data[i++]=c;
+                read(pid,&c,1);
+            }
+            pids=(int*)realloc(pids,(++n)*sizeof(int));
+            pids[n-1]=atoi(data);
+            count++;
+            //printf("%d %d\n",pids[n-1],n-1);
+            for (i=0;i<5;i++)
+                data[i]=0;
+            pc=c;
+            read(pid,&c,1);
+            if (c==pc&&c==' ')
+                break;
+         }
+         close(pid);
+    }
+    //for (int i=0;i<n;i++)
+        //printf("%d ",pids[i]);
+    printf("%d\n", count);
+    return 0;
+}
