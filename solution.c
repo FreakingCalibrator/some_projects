@@ -36,4 +36,4 @@ break;
 printf("%d\n",num);
 close(fd);
 return 0;
-} 
+} //
