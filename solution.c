@@ -4,51 +4,36 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
-#include <sys/types.h>
-#include <dirent.h>
-
-int main(int argc, char** argv)
+int main()
 {
-DIR* dir;
-char buff[41];
+char str[5];
+int num=0;
 char c;
-struct dirent *entry;
-int pid,i,count=0;
-dir=opendir("/proc/");
-if (!dir){
-	printf("Eroor in diropen proc");
-	exit(1);
-}
-while ((entry=readdir(dir))!=NULL)
+int len;
+int fd=open("/proc/self/status", O_RDONLY);
+while ((read(fd,&str,4))>0)
 {
-	char str[30]="/proc/";
-	if (atoi(entry->d_name))
-	{
-		i=0;
-		strcat(str,entry->d_name);
-		strcat(str,"/status");
-		strcat(str,"\0");
-		//printf("%s-------",str);
-		pid=open(str,O_RDONLY);
-		for (i=0;i<6;i++)
-			read(pid,&c,1);
-		read(pid,&c,1);
-		for (i=0;i<30;i++)
-			buff[i]=0;
-		i=0;
-		while (c!='\n'){
-			//printf("%d",(int)c);
-			//strcat(buff,c);
-			buff[i++]=c;
-			read(pid,&c,1);
-		}
-		strcat(buff,"\0");
-		//buff[i++]=0;
-		//printf("%s\n",buff);
-		close(pid);
-		count+=!strcmp(buff,"genenv");
-	}
+str[4]=0;
+c=9;
+//printf("%s", str);
+
+if (strcmp(str,"PPid"))
+while (c!='\n'){
+read(fd,&c,1);
+//printf("%c ", c);
 }
-printf("%d\n",count);
+else
+{
+read(fd,&c,1);
+while (c!='\n'){
+read(fd,&c,1);
+if (c>47&&c<58)
+num=num*10+(int)c-48;
+}
+break;
+}
+}
+printf("%d\n",num);
+close(fd);
 return 0;
-}
+} 
