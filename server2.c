@@ -65,7 +65,7 @@ if (epoll_ctl(epfd, EPOLL_CTL_ADD, listenfd, &AccEv) == -1) {
 }
 while(1)
 {
-
+    printf("%d\n",i++);
     int ready = epoll_wait(epfd, AccEvs, 1, 500);
     if (ready == -1) { 
         perror("epoll_wait"); 
