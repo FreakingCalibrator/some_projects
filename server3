@@ -1,0 +1,131 @@
+#include <sys/types.h> 
+#include <sys/socket.h> 
+#include <netdb.h> 
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h> 
+#include <unistd.h> 
+#include <sys/epoll.h> 
+#define MAX_EVENTS 1 
+#define MAX_BUF    1024 
+const int BACK_LOG = 100;
+int main(int argc, char** argv)
+{
+    char buff[1000];
+    int listenfd=socket(AF_INET, SOCK_STREAM, 0);
+    if (listenfd==-1)
+    {
+        perror("[ERROR]: Error in creating socket.\n");
+        close(listenfd);
+        return -1;
+    }
+
+    struct sockaddr_in serv;
+    serv.sin_addr.s_addr=INADDR_ANY;    //любой адрес принимает
+    serv.sin_family=AF_INET;
+    serv.sin_port=htons(7000);
+    int yes=1;
+
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
+    {
+        perror("[ERROR]: Error in setting socket options.\n");
+        close(listenfd);
+        return -1;
+    }
+
+    if (bind(listenfd, (struct sockaddr*) &serv, sizeof(serv))==-1)
+    {
+        perror("[ERROR]: Error in binding socket.\n");
+        close(listenfd);
+        return -1;
+    }
+
+    if (listen(listenfd, 1)==-1)
+    {
+        perror("[ERROR]: Error in setting listen socket.\n");
+        close(listenfd);
+        return -1;
+    }
+
+    int listenEvfd = epoll_create(1);
+    if (listenEvfd==-1)
+    {
+        perror("[ERROR]: Error creating listenEvfd.\n");
+        close(listenfd);
+        return -1;
+    }
+    struct epoll_event listenEv;
+    struct epoll_event listenEvs[1];
+    listenEv.data.fd=listenEvfd;
+    listenEv.events=EPOLLIN;
+    if (epoll_ctl(listenEvfd, EPOLL_CTL_ADD, listenfd, &listenEv)==-1)
+    {
+        perror("[ERROR]: Error ctl listenEv.\n");
+        close(listenfd);
+        return -1;
+    }
+
+    int clientEvfd = epoll_create(5);
+    if (clientEvfd==-1)
+    {
+        perror("[ERROR]: Error creating clientEvfd.\n");
+        close(listenfd);
+        return -1;
+    }
+
+    struct epoll_event clientEv;
+    struct epoll_event clientEvs[5];
+    struct sockaddr_storage client;
+    socklen_t size = sizeof(client);
+    while (1)
+    {
+        int readSize;
+        int acceptSize = epoll_wait(listenEvfd, (struct epoll_event*)&listenEvs, 1, 500);
+        if (acceptSize==1)
+        {
+            int cs;
+            if ((cs = accept(listenfd, (struct sockaddr*)&client, &size))==-1)
+            {
+                perror("[ERROR]: Error accepting connection.\n");
+                close(listenfd);
+                return -1;
+            }
+
+            clientEv.data.fd=cs;
+            clientEv.events=EPOLLIN;
+            if (epoll_ctl(clientEvfd, EPOLL_CTL_ADD, cs, &clientEv)==-1)
+            {
+                perror("[ERROR]: Error with ctl new clients.\n");
+                close(listenfd);
+                return -1;
+            }
+        }
+        else if (acceptSize==-1)
+        {
+            perror("Error with accept waiting.\n");
+            close(listenfd);
+            return -1;
+        }
+
+        if ((readSize=epoll_wait(clientEvfd, (struct epoll_event*)clientEvs, 5, 10000))==-1)
+        {
+            perror("[ERROR]: Error with read waiting.\n");
+            close(listenfd);
+            return -1;
+        }
+
+        for (int i=0;i<readSize;++i)
+        {
+            if (read(clientEvs[i].data.fd, buff, 1000)==-1)
+            {
+                perror("[ERROR]: Error with read data.\n");
+                close(listenfd);
+                return -1;
+            }
+            printf("[DATA]: socket %d: %s\n", clientEvs[i].data.fd, buff);
+            memset(buff, 0, 1000);
+        }
+    }   
+
+    return 0;
+}
