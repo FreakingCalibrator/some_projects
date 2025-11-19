@@ -77,9 +77,9 @@ int main(int argc, char** argv)
     struct epoll_event clientEvs[5];
     struct sockaddr_storage client;
     socklen_t size = sizeof(client);
+    int readSize;
     while (1)
     {
-        int readSize;
         int acceptSize = epoll_wait(listenEvfd, (struct epoll_event*)&listenEvs, 1, 500);
         if (acceptSize==1)
         {
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
             }
 
             clientEv.data.fd=cs;
-            clientEv.events=EPOLLIN;
+            clientEv.events=EPOLLIN|EPOLLRDHUP;
             if (epoll_ctl(clientEvfd, EPOLL_CTL_ADD, cs, &clientEv)==-1)
             {
                 perror("[ERROR]: Error with ctl new clients.\n");
@@ -106,14 +106,13 @@ int main(int argc, char** argv)
             close(listenfd);
             return -1;
         }
-
-        if ((readSize=epoll_wait(clientEvfd, (struct epoll_event*)clientEvs, 5, 10000))==-1)
+        readSize=0;
+        if ((readSize=epoll_wait(clientEvfd, (struct epoll_event*)clientEvs, 5, 500))==-1)
         {
             perror("[ERROR]: Error with read waiting.\n");
             close(listenfd);
             return -1;
         }
-
         for (int i=0;i<readSize;++i)
         {
             if (read(clientEvs[i].data.fd, buff, 1000)==-1)
@@ -122,8 +121,15 @@ int main(int argc, char** argv)
                 close(listenfd);
                 return -1;
             }
-            printf("[DATA]: socket %d: %s\n", clientEvs[i].data.fd, buff);
-            memset(buff, 0, 1000);
+            if (clientEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)
+            {
+                epoll_ctl(clientEvfd, EPOLL_CTL_DEL, clientEvs[i].data.fd, &clientEvs[i]);
+                close(clientEvs[i].data.fd);
+            }
+            if ((strlen(buff)!=0)){
+                printf("[DATA]: socket %d: %s\n", clientEvs[i].data.fd, buff);
+                memset(buff, 0, 1000);
+            }
         }
     }   
 
