@@ -1,0 +1,13 @@
+[Unit]
+Description=SomeServer
+After=netwok.target
+
+[Service]
+Type=notify
+User=galahad
+Group=galahad
+RemainAfterExit=no
+ExecStart=/usr/bin/systemd_daemon start
+
+[Install]
+WantedBy=multi-user.target
