@@ -1,9 +1,12 @@
+//https://www.baeldung.com/linux/process-daemon-service-differences
 #include <sys/types.h> 
 #include <sys/socket.h> 
 #include <netdb.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <string.h> 
+#include <signal.h>
+#include <systemd/sd-daemon.h>
 #include <unistd.h> 
 #include <time.h>
 #include <sys/epoll.h> 
@@ -22,12 +25,32 @@ struct dataBase
     struct epoll_event listenEvs[1];
     int clientEvfd;
 };
+
+int signal_captured = 0;
+
+void signal_handler(int signum, siginfo_t *info, void *extra)
+{
+    signal_captured = 1;
+}
+
+void set_signal_handler(void)
+{
+    struct sigaction action;
+
+    action.sa_flags = SA_SIGINFO;
+    action.sa_sigaction = signal_handler;
+    sigaction(SIGTERM, &action, NULL);
+}
+
 int shutdown(int clientEvfd, int listenEvfd);
 int flightPlan(struct dataBase *db);
+int takeOff();
 int getTime(int fd);
 int getStats(int fd);
 int main(int argc, char** argv)
 {
+    set_signal_handler();
+    sd_notify(0, "READY=1\nSTATUS=Running");
     char buff[1000];
     char answer[100];
     struct dataBase db;
@@ -39,7 +62,7 @@ int main(int argc, char** argv)
     struct sockaddr_storage client;
     socklen_t size = sizeof(client);
     int readSize;
-    while (1)
+    while (!signal_captured)
     {
         int acceptSize = epoll_wait(db.listenEvfd, (struct epoll_event*)&listenEvs, 1, 500);
         if (acceptSize==1)
@@ -80,7 +103,7 @@ int main(int argc, char** argv)
                 perror("[ERROR]: Error with read data.\n");
                 shutdown(db.clientEvfd, db.listenEvfd);
             }
-            else if (clientEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)
+            else if (clientEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)  //Закрытие сокета при наличии сигнала со стороны клиента Ctrl+d
             {
                 epoll_ctl(db.clientEvfd, EPOLL_CTL_DEL, clientEvs[i].data.fd, &clientEvs[i]);
                 close(clientEvs[i].data.fd);
@@ -103,7 +126,7 @@ int main(int argc, char** argv)
                     if (res==-1)
                         return res;
                 }
-                printf("[DATA]: socket %d: %s\n", clientEvs[i].data.fd, buff);
+                //printf("[DATA]: socket %d: %s\n", clientEvs[i].data.fd, buff);
                 memset(buff, 0, 1000);
             }
         }
@@ -117,14 +140,14 @@ int shutdown(int clientEvfd, int listenEvfd)
     if (close(clientEvfd))
     {
         perror("[ERROR]: Error closing clientEvfd.\n");
-        return -1;
+        sd_notify(0, "STOPPING=1");
     }
     if (close(listenEvfd))
     {
         perror("[ERROR]: Error closing listenEvfd.\n");
-        return -1;
+        sd_notify(0, "STOPPING=1");
     }
-    return 0;
+    sd_notify(0, "STOPPING=1");
 }
 
 int getTime(int fd)
@@ -213,3 +236,6 @@ int flightPlan(struct dataBase *db)
         return -1;
     }
 }
+
+int takeOff()
+{}
