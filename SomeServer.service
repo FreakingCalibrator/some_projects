@@ -4,7 +4,7 @@ After=netwok.target
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/serverTCPandUDP start
+ExecStart=/usr/bin/server5_daemon start
 
 [Install]
 WantedBy=multi-user.target

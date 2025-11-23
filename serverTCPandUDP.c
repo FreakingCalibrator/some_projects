@@ -88,6 +88,13 @@ int takeOff(struct dataBase *db)
         return -1;
     }  
 
+    if (setsockopt(db->udpfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) { 
+        printf("Error in setsockopt");
+        close(db->listenfd);
+        close(db->udpfd); 
+        return -1;
+    }  
+
     if (bind(db->listenfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) == -1) { 
         printf("Bind error");
         close(db->listenfd);
