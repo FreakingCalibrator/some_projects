@@ -53,6 +53,7 @@ int main()
     takeOff(&db);
     cruise(&db);
     landing(&db);
+    sd_notify(0, "STOPPING=1");
     return 0;
 }
 
@@ -255,27 +256,22 @@ int landing(struct dataBase *db)
     if (close(db->epfd)==-1)
     {
         perror("[ERROR]: Error closing clientEvfd.\n");
-        sd_notify(0, "STOPPING=1");
     }
     
     if (close(db->listenfd)==-1)
     {
         perror("[ERROR]: Error closing TCP server.\n");
-        sd_notify(0, "STOPPING=1");
     }
 
     if (close(db->udpfd))
     {
         perror("[ERROR]: Error closing UDP server.\n");
-        sd_notify(0, "STOPPING=1");
     }
 
     if (close(db->soksFd)==-1)
     {
         perror("[ERROR]: Error closing listenEvfd.\n");
-        sd_notify(0, "STOPPING=1");
     }
-    sd_notify(0, "STOPPING=1");
 }
 
 void getTime(char* buff)
