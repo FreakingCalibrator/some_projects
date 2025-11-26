@@ -50,10 +50,12 @@ int main()
     set_signal_handler();
     sd_notify(0, "READY=1\nSTATUS=Running");
     struct dataBase db;
-    if (takeOff(&db)==-1)
-        return -1
-    cruise(&db);
-    landing(&db);
+    if (takeOff(&db)!=-1){
+        cruise(&db);
+        landing(&db);
+    }
+    else
+        landing(&db);
     sd_notify(0, "STOPPING=1");
     return 0;
 }
@@ -189,13 +191,13 @@ int cruise(struct dataBase *db)
                 }
                 else
                 {
-                Analise(buff, db, &printly);
-                if (printly){
-                    if (sendto(socksEvs[i].data.fd, buff, 1000, 0, (struct sockaddr*)&addr, socklen)==-1)
-                    {
-                        perror("[ERROR]: Error with UDP sending data.\n");
+                    Analise(buff, db, &printly);
+                    if (printly){
+                        if (sendto(socksEvs[i].data.fd, buff, 1000, 0, (struct sockaddr*)&addr, socklen)==-1)
+                        {
+                            perror("[ERROR]: Error with UDP sending data.\n");
+                        }
                     }
-                }
                 }
                 memset(buff, 0, 1000);
             }
@@ -209,20 +211,20 @@ int cruise(struct dataBase *db)
                 //errorWork(&db);
             }
             else{
-            if (TCPEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)  //Закрытие сокета при наличии сигнала со стороны клиента Ctrl+d
-            {
-                epoll_ctl(db->epfd, EPOLL_CTL_DEL, TCPEvs[i].data.fd, &TCPEvs[i]);
-                close(TCPEvs[i].data.fd);
-                --stats;
-            }
-            Analise(buff, db, &printly);
-            if (printly)
-            {
-                if (send(TCPEvs[i].data.fd, buff, 1000, 0)==-1)
+                if (TCPEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)  //Закрытие сокета при наличии сигнала со стороны клиента Ctrl+d
                 {
-                    //errorWork(&db);
+                    epoll_ctl(db->epfd, EPOLL_CTL_DEL, TCPEvs[i].data.fd, &TCPEvs[i]);
+                    close(TCPEvs[i].data.fd);
+                    --stats;
                 }
-            }
+                Analise(buff, db, &printly);
+                if (printly)
+                {
+                    if (send(TCPEvs[i].data.fd, buff, 1000, 0)==-1)
+                    {
+                        //errorWork(&db);
+                    }
+                }
             }
             memset(buff, 0, 1000);
         }
