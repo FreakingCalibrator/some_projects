@@ -164,7 +164,7 @@ int cruise(struct dataBase *db)
                 int cs;
                 if ((cs=accept(db->listenfd, (struct sockaddr*)&db->addrs, &addr_size))==-1)
                 {
-                    signal_captured=1;
+                    //Nothing
                 }
                 else 
                 {
@@ -208,7 +208,7 @@ int cruise(struct dataBase *db)
             memset(buff, 0, 1000);
             if (recv(TCPEvs[i].data.fd, buff, 1000, 0)==-1)
             {
-                //errorWork(&db);
+                //Nothing
             }
             else{
                 if (TCPEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)  //Закрытие сокета при наличии сигнала со стороны клиента Ctrl+d
@@ -222,7 +222,7 @@ int cruise(struct dataBase *db)
                 {
                     if (send(TCPEvs[i].data.fd, buff, 1000, 0)==-1)
                     {
-                        //errorWork(&db);
+                        //Nothing
                     }
                 }
             }
