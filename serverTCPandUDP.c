@@ -50,7 +50,8 @@ int main()
     set_signal_handler();
     sd_notify(0, "READY=1\nSTATUS=Running");
     struct dataBase db;
-    takeOff(&db);
+    if (takeOff(&db)==-1)
+        return -1
     cruise(&db);
     landing(&db);
     sd_notify(0, "STOPPING=1");
@@ -147,12 +148,12 @@ int cruise(struct dataBase *db)
         int socks_size=epoll_wait(db->soksFd, (struct epoll_event*)socksEvs, 2, 500);
         if(socks_size==-1)
         {
-            //errorWork(&db);
+            signal_captured=1;
         }
         int TCPSize=epoll_wait(db->epfd, (struct epoll_event*)TCPEvs, 5, 500);
         if (TCPSize==-1)
         {
-            //errorWork(&db);
+            signal_captured=1;
         }
         for (int i=0;i<socks_size;++i)
         {
@@ -161,7 +162,7 @@ int cruise(struct dataBase *db)
                 int cs;
                 if ((cs=accept(db->listenfd, (struct sockaddr*)&db->addrs, &addr_size))==-1)
                 {
-                    //errorWork(&db);
+                    signal_captured=1;
                 }
                 else 
                 {
@@ -172,7 +173,7 @@ int cruise(struct dataBase *db)
                     TCPev.events=EPOLLIN|EPOLLHUP;
                     if (epoll_ctl(db->epfd, EPOLL_CTL_ADD, cs, (struct epoll_event*)&TCPev)==-1)
                     {
-                        //errorWork(&db);
+                        signal_captured=1;
                     }
                 }
             }
@@ -186,14 +187,15 @@ int cruise(struct dataBase *db)
                 {
                     //errorWork(&db);
                 }
+                else
+                {
                 Analise(buff, db, &printly);
                 if (printly){
                     if (sendto(socksEvs[i].data.fd, buff, 1000, 0, (struct sockaddr*)&addr, socklen)==-1)
                     {
                         perror("[ERROR]: Error with UDP sending data.\n");
-                        //errorWork(&db);
-                        return -1;
                     }
+                }
                 }
                 memset(buff, 0, 1000);
             }
@@ -206,6 +208,7 @@ int cruise(struct dataBase *db)
             {
                 //errorWork(&db);
             }
+            else{
             if (TCPEvs[i].events==EPOLLIN|EPOLLRDHUP&&strlen(buff)==0)  //Закрытие сокета при наличии сигнала со стороны клиента Ctrl+d
             {
                 epoll_ctl(db->epfd, EPOLL_CTL_DEL, TCPEvs[i].data.fd, &TCPEvs[i]);
@@ -219,6 +222,7 @@ int cruise(struct dataBase *db)
                 {
                     //errorWork(&db);
                 }
+            }
             }
             memset(buff, 0, 1000);
         }
